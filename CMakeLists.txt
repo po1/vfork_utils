@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(popen_vfork)
+project(vfork_utils)
 
-add_library(popen_vfork SHARED popen.c system.c)
+add_library(vfork_utils SHARED popen.c system.c)
 
-install(TARGETS popen_vfork DESTINATION lib)
+install(TARGETS vfork_utils DESTINATION lib)
