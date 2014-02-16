@@ -32,17 +32,31 @@
  * SUCH DAMAGE.
  */
 
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+static int *pids;
 
 FILE * popen(const char* program, const char* type)
 {
     FILE *iop;
     int pdes[2], fds, pid;
 
-    if (*type != 'r' && *type != 'w' || type[1])
+    if ((*type != 'r' && *type != 'w') || type[1])
         return (NULL);
 
+    if (pids == NULL) {
+        if ((fds = getdtablesize()) <= 0)
+            return (NULL);
+        if ((pids = (int *)malloc(fds * sizeof(int))) == NULL)
+            return (NULL);
+        bzero((char *)pids, fds * sizeof(int));
+    }
     if (pipe(pdes) < 0)
         return (NULL);
     switch (pid = vfork()) {
@@ -77,5 +91,34 @@ FILE * popen(const char* program, const char* type)
         iop = fdopen(pdes[1], type);
         (void) close(pdes[0]);
     }
+    pids[fileno(iop)] = pid;
     return (iop);
+}
+
+int pclose(FILE* iop)
+{
+    int fdes;
+    sigset_t omask, nmask;
+    union wait pstat;
+    int pid;
+
+    /*
+     * pclose returns -1 if stream is not associated with a
+     * `popened' command, if already `pclosed', or waitpid
+     * returns an error.
+     */
+    if (pids == NULL || pids[fdes = fileno(iop)] == 0)
+        return (-1);
+    (void) fclose(iop);
+    sigemptyset(&nmask);
+    sigaddset(&nmask, SIGINT);
+    sigaddset(&nmask, SIGQUIT);
+    sigaddset(&nmask, SIGHUP);
+    (void) sigprocmask(SIG_BLOCK, &nmask, &omask);
+    do {
+        pid = waitpid(pids[fdes], (int *) &pstat, 0);
+    } while (pid == -1 && errno == EINTR);
+    (void) sigprocmask(SIG_SETMASK, &omask, NULL);
+    pids[fdes] = 0;
+    return (pid == -1 ? -1 : pstat.w_status);
 }
