@@ -1,0 +1,13 @@
+Source: vfork-utils
+Priority: extra
+Maintainer: Paul Mathieu <paul.mathieu@pal-robotics.com>
+Build-Depends: debhelper (>= 8.0.0), cmake
+Standards-Version: 3.9.2
+Section: libs
+Homepage: https://github.com/po1/vfork_utils
+
+Package: vfork-utils
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Replacement for popen() and system() with calls that use vfork()
